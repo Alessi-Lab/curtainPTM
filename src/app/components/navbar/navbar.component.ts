@@ -1,4 +1,4 @@
-import {Component, Input, OnInit} from '@angular/core';
+import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
 import {WebService} from "../../web.service";
 import {DataService} from "../../data.service";
 import {ScrollService} from "../../scroll.service";
@@ -7,6 +7,13 @@ import {NgbModal} from "@ng-bootstrap/ng-bootstrap";
 import {SampleAnnotationComponent} from "../sample-annotation/sample-annotation.component";
 import {SampleOrderAndHideComponent} from "../sample-order-and-hide/sample-order-and-hide.component";
 import {DataFrame, IDataFrame} from "data-forge";
+import {AccountsService} from "../../accounts/accounts.service";
+import {LoginModalComponent} from "../../accounts/login-modal/login-modal.component";
+import {SessionSettingsComponent} from "../session-settings/session-settings.component";
+import {AccountsComponent} from "../../accounts/accounts/accounts.component";
+import {ToastService} from "../../toast.service";
+import {DefaultColorPaletteComponent} from "../default-color-palette/default-color-palette.component";
+import {DataSelectionManagementComponent} from "../data-selection-management/data-selection-management.component";
 
 @Component({
   selector: 'app-navbar',
@@ -16,18 +23,37 @@ import {DataFrame, IDataFrame} from "data-forge";
 export class NavbarComponent implements OnInit {
   @Input() finished: boolean = false
   @Input() uniqueLink: string = ""
+  @Output() updateSelection: EventEmitter<boolean> = new EventEmitter<boolean>()
   filterModel: string = ""
   constructor(
     public web: WebService,
     public data: DataService,
     private scroll: ScrollService,
     private settings: SettingsService,
-    private modal: NgbModal) { }
+    private modal: NgbModal,
+    public accounts: AccountsService, private toast: ToastService) { }
 
   ngOnInit(): void {
   }
 
   saveSession() {
+    if (!this.accounts.curtainAPI.user.loginStatus) {
+      if (this.web.siteProperties.non_user_post) {
+        this.saving();
+      } else {
+        this.toast.show("User information", "Please login before saving data session").then()
+      }
+    } else {
+      if (!this.accounts.curtainAPI.user.curtainLinkLimitExceeded ) {
+        this.saving();
+      } else {
+        this.toast.show("User information", "Curtain link limit exceed").then()
+      }
+    }
+
+  }
+
+  private saving() {
     const data: any = {
       raw: this.data.raw.originalFile,
       rawForm: this.data.rawForm,
@@ -43,17 +69,20 @@ export class NavbarComponent implements OnInit {
       annotatedData: this.data.annotatedData,
       annotatedMap: this.data.annotatedMap
     }
-    this.web.putSettings(data).subscribe(data => {
-      if (data.body) {
-        this.settings.currentID = data.body
-        this.uniqueLink = location.origin +"/#/" + this.settings.currentID
+    this.accounts.curtainAPI.putSettings(data, !this.accounts.curtainAPI.user.loginStatus, data.settings.description).then((data: any) => {
+      if (data.data) {
+        this.settings.currentID = data.data.link_id
+        this.uniqueLink = location.origin + "/#/" + this.settings.currentID
       }
+    }, err => {
+      this.toast.show("User information", "Curtain link cannot be saved").then()
     })
   }
 
   clearSelections() {
     this.data.selected = []
     this.data.selectedGenes = []
+    this.data.selectedAccessions = []
     this.data.selectedMap = {}
     this.data.selectOperationNames = []
     this.settings.settings.colorMap = {}
@@ -94,5 +123,39 @@ export class NavbarComponent implements OnInit {
   }
   openSampleSettings() {
     const ref = this.modal.open(SampleOrderAndHideComponent)
+  }
+
+  openLoginModal() {
+    const ref = this.modal.open(LoginModalComponent)
+    return ref
+  }
+
+  openSessionSettings() {
+    const ref = this.modal.open(SessionSettingsComponent)
+    ref.componentInstance.currentID = this.settings.currentID
+  }
+
+  openAccountModal() {
+    const ref = this.modal.open(AccountsComponent)
+  }
+  openColorPaletteModal() {
+    const ref = this.modal.open(DefaultColorPaletteComponent, {size: "xl", scrollable: true})
+
+  }
+
+  selectionManagementModal() {
+    const ref = this.modal.open(DataSelectionManagementComponent, {scrollable: true})
+    ref.closed.subscribe(data => {
+      if (data) {
+        this.data.selectedAccessions = []
+        this.data.selectedGenes = []
+        if (this.data.selected.length > 0) {
+          this.updateSelection.next(true)
+        } else {
+          this.clearSelections()
+        }
+
+      }
+    })
   }
 }

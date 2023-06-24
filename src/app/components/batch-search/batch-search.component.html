@@ -7,14 +7,29 @@
       <input type="text" placeholder="Title" class="form-control" [(ngModel)]="title">
     </div>
     <div class="col">
-      <div ngbDropdown class="d-inline-block">
+      <form [formGroup]="form">
+        <input id="typeahead-basic"
+               [resultTemplate]="rt"
+               [inputFormatter]="formatter"
+               placeholder="Protein/Category search"
+               [class.is-invalid]="searchFailed"
+               type="text" class="form-control"
+               formControlName="searchTerm"
+               (focus)="focusCapture.next($any($event).target.value)"
+               (click)="clickCapture.next($any($event).target.value)"
+               [ngbTypeahead]="search"
+               (selectItem)="selectDataList($event)"
+               #instance="ngbTypeahead"
+        />
+      </form>
+      <!--<div ngbDropdown class="d-inline-block">
         <button type="button" class="btn btn-outline-primary" id="dropDownProteinList" ngbDropdownToggle>Built-in Protein Lists</button>
         <div ngbDropdownMenu aria-labelledby="dropDownProteinList">
-          <button ngbDropdownItem *ngFor="let b of builtInList" (click)="updateTextArea(b)">
-            {{web.filters[b].name}}
+          <button ngbDropdownItem *ngFor="let b of filterList" (click)="updateTextArea(b.id)">
+            {{b.name}}
           </button>
         </div>
-      </div>
+      </div>-->
     </div>
     <div class="col">
       <select class="form-control" [(ngModel)]="searchType">
@@ -28,6 +43,14 @@
     </div>
   </div>
   <textarea [disabled]="params.enableAdvanced" class="form-control mb-2" [(ngModel)]="data" rows="10"></textarea>
+  <div class="d-flex">
+    <div class="p-2">
+      <button class="btn btn-sm btn-primary" (click)="saveDataFilterList()">Save</button>
+    </div>
+    <div class="p-2">
+      <button class="btn btn-sm btn-danger" (click)="deleteDataFilterList()" [disabled]="!canDelete">Delete</button>
+    </div>
+  </div>
   <hr>
   <div class="row">
     <div class="form-check">
@@ -85,3 +108,11 @@
   <button class="btn btn-primary" (click)="handleSubmit()">Submit</button>
   <button class="btn btn-danger" (click)="close()">Close</button>
 </div>
+<ng-template #rt let-r="result" let-t="term">
+  <div *ngIf="r.default" style="color: #850000">
+    <ngb-highlight [result]="r.name" [term]="t"></ngb-highlight><span> </span><ngb-highlight *ngIf="r.data !== ''" [result]="r.data" [term]="t"></ngb-highlight>
+  </div>
+  <div *ngIf="!r.default" style="color: #9933ff">
+    <ngb-highlight [result]="r.name" [term]="t"></ngb-highlight><span> </span><ngb-highlight *ngIf="r.data !== ''" [result]="r.data" [term]="t"></ngb-highlight>
+  </div>
+</ng-template>

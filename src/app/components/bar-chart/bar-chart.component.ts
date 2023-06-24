@@ -23,6 +23,11 @@ export class BarChartComponent implements OnInit {
   conditions: string[] = []
   testType: string = "ANOVA"
 
+  config: any = {
+    modeBarButtonsToRemove: ["toImage"]
+  }
+
+
   barChartErrorType: string = "Standard Error"
 
   @Input() set data(value: any) {
@@ -31,10 +36,8 @@ export class BarChartComponent implements OnInit {
       this.title = "<b>" + this._data[this.dataService.rawForm.primaryIDs] + "</b>"
       this.uni = this.uniprot.getUniprotFromAcc(this._data[this.dataService.rawForm.primaryIDs])
 
-      if (this.uni) {
-        if (this.uni["Gene Names"] !== "") {
-          this.title = "<b>" + value.position.residue + value.position.position + " "+ this.uni["Gene Names"] + "(" + this._data[this.dataService.rawForm.primaryIDs] + ")" + "</b>"
-        }
+      if (this.uni["Gene Names"] !== "") {
+        this.title = "<b>" + value.position.residue + value.position.position + " "+ this.uni["Gene Names"] + "(" + this._data[this.dataService.rawForm.primaryIDs] + ")" + "</b>"
       }
       this.drawBarChart()
       this.graphLayout["title"] = this.title
@@ -63,7 +66,8 @@ export class BarChartComponent implements OnInit {
     },
     annotations: [],
     shapes: [],
-    margin: {r: 50, l: 50, b: 100, t: 100}
+    margin: {r: 50, l: 50, b: 100, t: 100},
+
   }
 
   graphDataAverage: any[] = []

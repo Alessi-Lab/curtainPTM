@@ -56,7 +56,7 @@ export class FileFormComponent implements OnInit {
     if (data > 0) {
       return Math.log2(data)
     } else if (data < 0) {
-      return Math.log2(Math.abs(data))
+      return -Math.log2(Math.abs(data))
     } else {
       return 0
     }
@@ -68,10 +68,16 @@ export class FileFormComponent implements OnInit {
   }
 
   processFiles() {
+    if (!this.data.differentialForm.comparison || this.data.differentialForm.comparison === "" || this.data.differentialForm.comparison === "CurtainSetComparison") {
+      this.data.differentialForm.comparison = "CurtainSetComparison"
+      this.data.differentialForm.comparisonSelect = "1"
+
+      this.data.differential.df = this.data.differential.df.withSeries("CurtainSetComparison", new Series(Array(this.data.differential.df.count()).fill("1"))).bake()
+    }
+
     if (this.data.differentialForm.comparisonSelect === "" || this.data.differentialForm.comparisonSelect === undefined) {
       this.data.differentialForm.comparisonSelect = this.data.differential.df.first()[this.data.differentialForm.comparison]
     }
-    console.log(this.data.differentialForm.comparisonSelect)
     const totalSampleNumber = this.data.rawForm.samples.length
     let sampleNumber = 0
     const conditions: string[] = []
@@ -94,10 +100,10 @@ export class FileFormComponent implements OnInit {
       const condition = condition_replicate.slice(0, condition_replicate.length-1).join(".")
       if (!conditions.includes(condition)) {
         conditions.push(condition)
-        if (colorPosition >= this.data.defaultColorList.length) {
+        if (colorPosition >= this.settings.settings.defaultColorList.length) {
           colorPosition = 0
         }
-        colorMap[condition] = this.data.defaultColorList[colorPosition]
+        colorMap[condition] = this.settings.settings.defaultColorList[colorPosition]
         colorPosition ++
       }
       if (!this.settings.settings.sampleOrder[condition]) {
@@ -190,6 +196,8 @@ export class FileFormComponent implements OnInit {
     this.uniprot.geneNameToPrimary = {}
     if (this.data.fetchUniProt) {
       const accList: string[] = []
+      this.data.dataMap = new Map<string, string>()
+      this.data.genesMap = {}
       for (const r of this.data.currentDF) {
         const a = r[this.data.differentialForm.accession]
         this.data.dataMap.set(a, r[this.data.differentialForm.accession])
@@ -206,7 +214,7 @@ export class FileFormComponent implements OnInit {
           this.data.accessionToPrimaryIDs[accession[1]][r[this.data.differentialForm.primaryIDs]] = true
           this.uniprot.accMap.set(r[this.data.differentialForm.primaryIDs], accession[1])
 
-          if (!this.uniprot.results.has(accession[1])) {
+          if (!this.uniprot.dataMap.has(accession[1])) {
             if (!accList.includes(accession[1])) {
               accList.push(accession[1])
             }
@@ -214,47 +222,13 @@ export class FileFormComponent implements OnInit {
         }
       }
       if (accList.length > 0) {
-        this.uniprot.PrimeAPIUniProtParser(accList).then(r => {
-          this.uniprot.uniprotParseStatus.subscribe(d => {
-            if (d) {
-              console.log(this.uniprot.results.get("Q68EF6"))
-              const allGenes: string[] = []
-              for (const p of this.data.accessionList) {
-                const uni = this.uniprot.getUniprotFromAcc(p)
-                if (uni) {
-                  if (uni["Gene Names"]) {
-                    if (uni["Gene Names"] !== "") {
-                      if (!allGenes.includes(uni["Gene Names"])) {
-                        allGenes.push(uni["Gene Names"])
-                        if (!this.data.genesMap[uni["Gene Names"]])  {
-                          this.data.genesMap[uni["Gene Names"]] = {}
-                          this.data.genesMap[uni["Gene Names"]][uni["Gene Names"]] = true
-                        }
-                        for (const n of uni["Gene Names"].split(";")) {
-                          if (!this.data.genesMap[n]) {
-                            this.data.genesMap[n] = {}
-                          }
-                          this.data.genesMap[n][uni["Gene Names"]] = true
-                        }
-                        if (!this.uniprot.geneNameToPrimary[uni["Gene Names"]]) {
-                          this.uniprot.geneNameToPrimary[uni["Gene Names"]] = {}
-                        }
-                        if (this.data.accessionToPrimaryIDs[uni["Entry"]]) {
-                          for (const e in this.data.accessionToPrimaryIDs[uni["Entry"]]) {
-                            this.uniprot.geneNameToPrimary[uni["Gene Names"]][e] = true
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              this.data.allGenes = allGenes
+        this.uniprot.UniprotParserJS(accList).then(r => {
+          this.createUniprotDatabase().then((allGenes)=> {
+            this.data.allGenes = allGenes
 
-              this.finished.emit(true)
-              this.updateProgressBar(100, "Finished")
-            }
-          })
+            this.finished.emit(true)
+            this.updateProgressBar(100, "Finished")
+          });
         })
       } else {
         this.finished.emit(true)
@@ -289,6 +263,41 @@ export class FileFormComponent implements OnInit {
       this.finished.emit(true)
       this.updateProgressBar(100, "Finished")
     }
+  }
+
+  private async createUniprotDatabase() {
+    const allGenes: string[] = []
+    for (const p of this.data.accessionList) {
+      const uni: any = this.uniprot.getUniprotFromAcc(p)
+      if (uni) {
+        if (uni["Gene Names"]) {
+          if (uni["Gene Names"] !== "") {
+            if (!allGenes.includes(uni["Gene Names"])) {
+              allGenes.push(uni["Gene Names"])
+              if (!this.data.genesMap[uni["Gene Names"]]) {
+                this.data.genesMap[uni["Gene Names"]] = {}
+                this.data.genesMap[uni["Gene Names"]][uni["Gene Names"]] = true
+              }
+              for (const n of uni["Gene Names"].split(";")) {
+                if (!this.data.genesMap[n]) {
+                  this.data.genesMap[n] = {}
+                }
+                this.data.genesMap[n][uni["Gene Names"]] = true
+              }
+              if (!this.uniprot.geneNameToPrimary[uni["Gene Names"]]) {
+                this.uniprot.geneNameToPrimary[uni["Gene Names"]] = {}
+              }
+              if (this.data.accessionToPrimaryIDs[uni["Entry"]]) {
+                for (const e in this.data.accessionToPrimaryIDs[uni["Entry"]]) {
+                  this.uniprot.geneNameToPrimary[uni["Gene Names"]][e] = true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return allGenes
   }
 
   parseSequence() {

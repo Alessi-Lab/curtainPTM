@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import {CurtainLink} from "./classes/curtain-link";
-import {HttpClient} from "@angular/common/http";
+import {HttpClient, HttpHeaders, HttpParams} from "@angular/common/http";
 import {PlotlyService} from "angular-plotly.js";
 import {GlyconnectService} from "./glyconnect.service";
 import {PspService} from "./psp.service";
@@ -11,6 +11,9 @@ import {CarbonyldbService} from "./carbonyldb.service";
   providedIn: 'root'
 })
 export class WebService {
+  siteProperties: any = {
+    non_user_post: true
+  }
   links = new CurtainLink()
   filters: any = {
     Kinases: {filename: "kinases.txt", name: "Kinases"},
@@ -81,13 +84,22 @@ export class WebService {
       {responseType: "json", observe: "body"}
     )
   }
-
-  putSettings(settings: any) {
-    return this.http.put(this.links.proxyURL + "file_data", JSON.stringify(settings, this.replacer), {responseType: "text", observe: "response"})
+  putSettings(settings: any, enable: boolean = true, description: string = "") {
+    let form = new FormData()
+    form.append("file", new Blob([JSON.stringify(settings, this.replacer)], {type: 'text/json'}), "curtainptm-settings.json")
+    if (enable) {
+      form.append("enable", "True")
+    } else {
+      form.append("enable", "False")
+    }
+    form.append("description", description)
+    form.append("curtain_type", "PTM")
+    return this.http.post(this.links.proxyURL + "curtain/", form, {responseType: "json", observe: "response"})
   }
 
-  postSettings(id: string, password: string) {
-    return this.http.post(this.links.proxyURL +"file_data", JSON.stringify({id: id, password: password}), {responseType: "text", observe: "response"})
+
+  postSettings(id: string, token: string) {
+    return this.http.get(this.links.proxyURL +`curtain/${id}/download/token=${token}/`, {responseType: "text", observe: "response"})
   }
 
   downloadFile(fileName: string, fileContent: string) {
@@ -109,7 +121,9 @@ export class WebService {
   }
 
   postNetphos(id: string, seq: string) {
-    return this.http.post(this.links.proxyURL + "netphos/predict", JSON.stringify({id: id, fasta: ">"+id+"\n"+ seq}), {responseType: "json", observe: "response"})
+    let headers = new HttpHeaders()
+    headers = headers.append("content-type", "application/json")
+    return this.http.post(this.links.proxyURL + "netphos/", JSON.stringify({id: id, fasta: ">"+id+"\n"+ seq}), {responseType: "json", observe: "response", headers})
   }
 
   getKinase(id: string) {
@@ -120,11 +134,10 @@ export class WebService {
     return this.http.get("https://rest.uniprot.org/uniprotkb/"+acc+".json", {headers: {accept: "application/json"}, responseType: "json", observe: "body"})
   }
 
-  getPrideData(accession: string) {
-    return this.http.get("https://www.ebi.ac.uk/pride/ws/archive/v2/projects/"+accession, {
-      responseType: "json",
-      observe: "body", headers: {
-        "accept": "application/json"
-      }})
+
+
+  generateTemporarySession(link_id: string, lifetime: number) {
+    return this.http.post(this.links.proxyURL + `curtain/${link_id}/generate_token/`, {lifetime}, {responseType: "json", observe: "body"})
   }
+
 }

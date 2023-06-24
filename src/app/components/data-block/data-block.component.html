@@ -9,7 +9,7 @@
                     <b>Found in searches:</b> {{foundIn.join(";")}}<br>
                   </p>-->
         <p>
-          <b>Variant:</b>{{accessionID}}<br>
+          <b>Variant: <span class="badge bg-danger" (click)="openVariantSelectionModal()">{{sourceMap["Experimental Data"]}}<br></span></b>
         </p>
         <ng-container *ngIf="dataService.fetchUniProt && uni">
           <p>
@@ -18,6 +18,10 @@
           <p>
             <b>Protein names:</b> {{uni["Protein names"]}}<br>
           </p>
+          <ul *ngIf="uni['Subcellular location [CC]']">
+            <b>Subcellular location:</b>
+            <li *ngFor="let subCell of uni['Subcellular location [CC]']">{{subCell}}</li>
+          </ul>
         </ng-container>
         <!--<div class="form-check">
           <input type="checkbox" [(ngModel)]="profileComparisonToggle" (change)="profileCompare()" class="form-check-input">
@@ -61,7 +65,7 @@
               <app-raw-data [data]="unidList" [toggle]="toggled"></app-raw-data>
             </ng-template>
           </li>
-          <li [ngbNavItem]="3">
+          <li [ngbNavItem]="3" *ngIf="dataService.differentialForm.position !== '' && dataService.differentialForm.position !== null && dataService.differentialForm.position !== undefined">
             <a ngbNavLink>PTM Position Viewer</a>
             <ng-template ngbNavContent>
               <div class="container-fluid">

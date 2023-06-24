@@ -4,6 +4,9 @@ import {DataService} from "../../data.service";
 import {UniprotService} from "../../uniprot.service";
 import {BiomsaService} from "../../biomsa.service";
 import {ScrollService} from "../../scroll.service";
+import {SettingsService} from "../../settings.service";
+import {NgbModal} from "@ng-bootstrap/ng-bootstrap";
+import {VariantSelectionComponent} from "../variant-selection/variant-selection.component";
 
 @Component({
   selector: 'app-data-block',
@@ -29,8 +32,8 @@ export class DataBlockComponent implements OnInit {
       const first = this._data.first()
       this.accessionID = first[this.dataService.differentialForm.accession]
       this.title = this.accessionID
-      this.sourceMap["Experimental Data"] = this.accessionID
-      const uni: any = this.uniprot.getUniprotFromAcc(this.accessionID)
+      this.sourceMap["Experimental Data"] = this.accessionID.slice()
+      const uni = this.uniprot.getUniprotFromAcc(this.accessionID)
       if (uni) {
         this.uni = uni
         if (this.uni["Gene Names"] !== "") {
@@ -47,23 +50,62 @@ export class DataBlockComponent implements OnInit {
     return this._data
   }
   async getSequence() {
-    if (this.accessionID !== this.uni["Entry"]) {
-      const res = await this.uniprot.getUniprotFasta(this.accessionID).toPromise()
-      if (res) {
-        this.allSequences[this.accessionID] = this.uniprot.parseFasta(res)
-      }
+    if (this.settingsService.settings.customSequences[this.accessionID] && this.settingsService.settings.customSequences[this.accessionID] !== "") {
+      this.allSequences[this.sourceMap["Experimental Data"]] = this.settingsService.settings.customSequences[this.accessionID].slice()
     } else {
-      this.allSequences[this.accessionID] = this.uni["Sequence"]
+      if (this.settingsService.settings.variantCorrection[this.accessionID]) {
+        const res = await this.uniprot.getUniprotFasta(this.settingsService.settings.variantCorrection[this.accessionID]).toPromise()
+        if (res) {
+          this.allSequences[this.sourceMap["Experimental Data"]] = this.uniprot.parseFasta(res)
+        }
+      } else {
+        if (this.accessionID !== this.uni["Entry"]) {
+          const res = await this.uniprot.getUniprotFasta(this.accessionID).toPromise()
+          if (res) {
+            this.allSequences[this.accessionID] = this.uniprot.parseFasta(res)
+          }
+        } else {
+          this.allSequences[this.accessionID] = this.uni["Sequence"]
+        }
+      }
     }
+
     const unidList: any[] = []
     for (const r of this._data) {
-      unidList.push({position: r[this.dataService.differentialForm.position], residue: this.allSequences[this.accessionID][r[this.dataService.differentialForm.position]-1], id: r[this.dataService.differentialForm.primaryIDs], score: r[this.dataService.differentialForm.score]})
+      let items = {
+        position: "",
+        residue: "",
+        id: r[this.dataService.differentialForm.primaryIDs],
+        score: "",
+        significant: (r[this.dataService.differentialForm.significant] >= -Math.log10(this.settingsService.settings.pCutoff)) &&
+          (Math.abs(r[this.dataService.differentialForm.foldChange]) > this.settingsService.settings.log2FCCutoff),
+      };
+
+      if (this.dataService.differentialForm.position !== "" && this.dataService.differentialForm.position !== undefined) {
+        items["position"] = r[this.dataService.differentialForm.position]
+        items["residue"] = this.allSequences[this.accessionID][r[this.dataService.differentialForm.position]-1]
+      }
+      if (this.dataService.differentialForm.score !== "" && this.dataService.differentialForm.score !== undefined) {
+        items["score"] = r[this.dataService.differentialForm.score]
+      }
+
+      unidList.push(items)
+
     }
     this.unidList = unidList
-
   }
   accessionID: string = ""
-  constructor(public dataService: DataService, private uniprot: UniprotService, private scroll: ScrollService) { }
+  constructor(private modal: NgbModal, public dataService: DataService, private uniprot: UniprotService, private scroll: ScrollService, private settingsService: SettingsService) {
+    this.dataService.updateVariantCorrection.asObservable().subscribe((value) => {
+      if (value) {
+        if (this.settingsService.settings.variantCorrection[this.accessionID]) {
+          this.sourceMap["Experimental Data"] = `${this.accessionID} (custom)`
+          this.getSequence().then()
+        }
+
+      }
+    })
+  }
 
   ngOnInit(): void {
   }
@@ -77,4 +119,30 @@ export class DataBlockComponent implements OnInit {
     }
     this.scroll.scrollToID("volcanoNcyto")
   }
+
+  openVariantSelectionModal() {
+    const ref = this.modal.open(VariantSelectionComponent)
+    ref.componentInstance.data = this.uni["Alternative products (isoforms)"]
+    ref.closed.subscribe((result) => {
+      if (result.returnToDefault) {
+        if (this.settingsService.settings.variantCorrection[this.accessionID]) {
+          delete this.settingsService.settings.variantCorrection[this.accessionID]
+        }
+        if (this.settingsService.settings.customSequences[this.accessionID]) {
+          delete this.settingsService.settings.customSequences[this.accessionID]
+        }
+        this.sourceMap["Experimental Data"] = this.accessionID.slice()
+      } else {
+        if (result.sequence && result.sequence !== "") {
+          this.settingsService.settings.customSequences[this.accessionID] = this.uniprot.parseFasta(result.sequence)
+          this.sourceMap["Experimental Data"] = `${this.accessionID} (custom)`
+        } else {
+          this.settingsService.settings.variantCorrection[this.accessionID] = result.isoforms
+          this.sourceMap["Experimental Data"] = result.isoforms.slice()
+        }
+      }
+      this.getSequence().then()
+    })
+  }
+
 }
