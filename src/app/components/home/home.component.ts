@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import {Component, EventEmitter, OnInit, Output} from '@angular/core';
 import {ToastService} from "../../toast.service";
 import {DataFrame, fromCSV, IDataFrame, ISeries, Series} from "data-forge";
 import {DataService} from "../../data.service";
@@ -28,6 +28,7 @@ export class HomeComponent implements OnInit {
   uniqueLink: string = ""
   filterModel: string = ""
   currentID: string = ""
+  @Output() currentIDChanged: EventEmitter<string> = new EventEmitter<string>()
   constructor(private accounts: AccountsService, private modal: NgbModal, public settings: SettingsService, private data: DataService, private route: ActivatedRoute, private toast: ToastService, private uniprot: UniprotService, private web: WebService, private ptm: PtmService) {
 
 
@@ -41,12 +42,17 @@ export class HomeComponent implements OnInit {
       this.ptm.getDatabase("CDB_CARBONYL")
       this.data.dataClear.asObservable().subscribe(data => {
         if (data) {
-          console.log(this.rawFiltered)
           this.rawFiltered = new DataFrame()
           this.differentialFiltered = new Series()
         }
       })
-
+      this.data.loadDataTrigger.asObservable().subscribe(data => {
+        if (data) {
+          this.rawFiltered = new DataFrame()
+          this.differentialFiltered = new Series()
+          this.handleFinish(true)
+        }
+      })
       this.route.params.subscribe(params => {
         if (params) {
           if (params["settings"] && params["settings"].length > 0) {
@@ -63,8 +69,10 @@ export class HomeComponent implements OnInit {
               this.currentID = settings[0]
               this.accounts.curtainAPI.getSessionSettings(settings[0]).then((d:any)=> {
                 this.data.session = d.data
-                this.accounts.curtainAPI.postSettings(settings[0], token).then((data:any) => {
+                this.accounts.curtainAPI.postSettings(settings[0], token, this.onDownloadProgress).then((data:any) => {
                   if (data.data) {
+                    this.uniqueLink = location.origin + "/#/" + this.currentID
+                    this.uniprot.uniprotProgressBar.next({value: 100, text: "Restoring Session..."})
                     this.restoreSettings(data.data).then(result => {
                       this.accounts.curtainAPI.getSessionSettings(settings[0]).then((d:any)=> {
                         this.data.session = d.data
@@ -158,6 +166,15 @@ export class HomeComponent implements OnInit {
 
     if (!object.settings.project) {
       object.settings.project = new Project()
+    } else {
+      const p = new Project()
+      for (const key in object.settings.project) {
+        if (object.settings.project.hasOwnProperty(key)) {
+          // @ts-ignore
+          p[key] = object.settings.project[key]
+        }
+      }
+      object.settings.project = p
     }
     if (!object.settings.sampleOrder) {
       object.settings.sampleOrder = {}
@@ -287,4 +304,9 @@ export class HomeComponent implements OnInit {
       this.data.selectedMap[s[this.data.differentialForm.primaryIDs]][e.title] = true
     }
   }
+
+  onDownloadProgress = (progressEvent: any) => {
+    this.uniprot.uniprotProgressBar.next({value: progressEvent.progress *100, text: "Downloading session data at " + Math.round(progressEvent.progress * 100) + "%"})
+  }
+
 }

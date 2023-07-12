@@ -14,6 +14,11 @@ import {AccountsComponent} from "../../accounts/accounts/accounts.component";
 import {ToastService} from "../../toast.service";
 import {DefaultColorPaletteComponent} from "../default-color-palette/default-color-palette.component";
 import {DataSelectionManagementComponent} from "../data-selection-management/data-selection-management.component";
+import {QrcodeModalComponent} from "../qrcode-modal/qrcode-modal.component";
+import {UniprotService} from "../../uniprot.service";
+import {CollaborateModalComponent} from "../collaborate-modal/collaborate-modal.component";
+import {SaveStateService} from "../../save-state.service";
+import {LocalSessionStateModalComponent} from "../local-session-state-modal/local-session-state-modal.component";
 
 @Component({
   selector: 'app-navbar',
@@ -29,9 +34,13 @@ export class NavbarComponent implements OnInit {
     public web: WebService,
     public data: DataService,
     private scroll: ScrollService,
-    private settings: SettingsService,
+    public settings: SettingsService,
     private modal: NgbModal,
-    public accounts: AccountsService, private toast: ToastService) { }
+    public accounts: AccountsService,
+    private toast: ToastService,
+    private uniprot: UniprotService,
+    private saveState: SaveStateService
+  ) { }
 
   ngOnInit(): void {
   }
@@ -69,25 +78,22 @@ export class NavbarComponent implements OnInit {
       annotatedData: this.data.annotatedData,
       annotatedMap: this.data.annotatedMap
     }
-    this.accounts.curtainAPI.putSettings(data, !this.accounts.curtainAPI.user.loginStatus, data.settings.description).then((data: any) => {
+    this.accounts.curtainAPI.putSettings(data, !this.accounts.curtainAPI.user.loginStatus, data.settings.description, "PTM", this.onUploadProgress).then((data: any) => {
       if (data.data) {
-        this.settings.currentID = data.data.link_id
-        this.uniqueLink = location.origin + "/#/" + this.settings.currentID
+        this.settings.settings.currentID = data.data.link_id
+        this.uniqueLink = location.origin + "/#/" + this.settings.settings.currentID
+        this.uniprot.uniprotProgressBar.next({value: 100, text: "Session data saved"})
+        this.finished = true
       }
     }, err => {
       this.toast.show("User information", "Curtain link cannot be saved").then()
     })
   }
-
+  onUploadProgress = (progressEvent: any) => {
+    this.uniprot.uniprotProgressBar.next({value: progressEvent.progress * 100, text: "Uploading session data at " + Math.round(progressEvent.progress *100) + "%"})
+  }
   clearSelections() {
-    this.data.selected = []
-    this.data.selectedGenes = []
-    this.data.selectedAccessions = []
-    this.data.selectedMap = {}
-    this.data.selectOperationNames = []
-    this.settings.settings.colorMap = {}
-    this.settings.settings.textAnnotation = {}
-    this.data.annotatedData = {}
+    this.data.clear()
     this.data.dataClear.next(true)
   }
 
@@ -118,7 +124,10 @@ export class NavbarComponent implements OnInit {
   openAnnotation() {
     const ref = this.modal.open(SampleAnnotationComponent, {size: "lg"})
     ref.closed.subscribe(data => {
-      this.settings.settings.project = data
+      for (const i in data) {
+        // @ts-ignore
+        this.settings.settings.project[i] = data[i]
+      }
     })
   }
   openSampleSettings() {
@@ -132,7 +141,7 @@ export class NavbarComponent implements OnInit {
 
   openSessionSettings() {
     const ref = this.modal.open(SessionSettingsComponent)
-    ref.componentInstance.currentID = this.settings.currentID
+    ref.componentInstance.currentID = this.settings.settings.currentID
   }
 
   openAccountModal() {
@@ -157,5 +166,34 @@ export class NavbarComponent implements OnInit {
 
       }
     })
+  }
+
+  openQRCode() {
+    const ref = this.modal.open(QrcodeModalComponent, {size: "sm"})
+    if (this.settings.settings.currentID) {
+      ref.componentInstance.url = location.origin + "/#/" + this.settings.settings.currentID
+    }
+  }
+
+  copyToClipboard(text: string = "") {
+    if (text === "") {
+      text = location.origin + "/#/" + this.settings.settings.currentID
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      this.toast.show("Clipboard", "Session link has been copied to clipboard").then()
+    })
+  }
+
+  openCollaborateModal() {
+    const ref = this.modal.open(CollaborateModalComponent)
+  }
+
+  saveLocalState() {
+    this.saveState.saveState()
+    this.toast.show("Local state", "A local settings state has been created").then()
+  }
+
+  openStateModal() {
+    const ref = this.modal.open(LocalSessionStateModalComponent, {scrollable: true})
   }
 }

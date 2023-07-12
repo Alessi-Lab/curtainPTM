@@ -1,14 +1,35 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top d-lex flex-wrap">
   <div class="container-fluid">
     <b style="padding-left: 4px" class="text-dark"><a class="navbar-brand" href="#">CurtainPTM</a></b>
-    <a *ngIf="uniqueLink !== ''" href="{{uniqueLink}}" class="ml-2 text-success">{{uniqueLink}}</a>
+    <div class="d-flex" *ngIf="finished && settings.settings.currentID !==''">
+      <div class="p-2">
+        <a *ngIf="uniqueLink !== ''" href="{{uniqueLink}}" class="ml-2 text-success">{{uniqueLink}}</a>
+      </div>
+      <div class="p-2">
+        <span class="badge bg-info" (click)="copyToClipboard()"><i class="bi bi-clipboard"></i></span>
+      </div>
+      <div class="p-2">
+        <span class="badge bg-warning" (click)="openQRCode()">QR Code</span>
+      </div>
+
+    </div>
     <div class="d-flex">
+      <div class="p-2" *ngIf="finished">
+        <div display="dynamic" ngbDropdown class="d-inline-block">
+          <button class="btn btn-outline-primary ml-2" id="localState" ngbDropdownToggle> State
+          </button>
+          <div ngbDropdownMenu aria-labelledby="localState">
+            <button ngbDropdownItem (click)="saveLocalState()">Create local state</button>
+            <button ngbDropdownItem (click)="openStateModal()">State Management</button>
+          </div>
+        </div>
+      </div>
       <div class="p-2">
         <div display="dynamic" ngbDropdown class="d-inline-block">
           <button class="btn btn-outline-primary ml-2" id="dropdownSession" ngbDropdownToggle>Session
             <ng-container *ngIf="data.session !== undefined">
               <span *ngIf="!data.session.enable" class="badge bg-danger">private</span>
-              <span *ngIf="data.session.enable" class="badge bg-primary">public</span>
+              <span *ngIf="data.session.enable" class="badge bg-primary">shareable</span>
             </ng-container>
           </button>
           <div ngbDropdownMenu aria-labelledby="dropdownSession">
@@ -18,6 +39,7 @@
               <button ngbDropdownItem (click)="web.downloadFile('different.txt', data.differential.originalFile)">Download Differential Analysis File</button>
               <button ngbDropdownItem (click)="web.downloadFile('raw.txt', data.raw.originalFile)">Download Raw File</button>
               <button ngbDropdownItem (click)="openAnnotation()">Project Annotation</button>
+              <button ngbDropdownItem (click)="openQRCode()" *ngIf="settings.settings.currentID !== ''">Session QR Code</button>
               <button ngbDropdownItem (click)="openSampleSettings()">Sample Order and Visibility</button>
               <button ngbDropdownItem (click)="openColorPaletteModal()">
                 Customize Color Palette
@@ -40,6 +62,7 @@
                 Logout
               </button>
             </ng-container>
+            <button ngbDropdownItem (click)="openCollaborateModal()">Collaborate</button>
           </div>
         </div>
       </div>

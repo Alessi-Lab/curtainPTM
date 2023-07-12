@@ -47,6 +47,12 @@ import { DefaultColorPaletteComponent } from './components/default-color-palette
 import { VariantSelectionComponent } from './components/variant-selection/variant-selection.component';
 import { SessionExpiredModalComponent } from './components/session-expired-modal/session-expired-modal.component';
 import { DataSelectionManagementComponent } from './components/data-selection-management/data-selection-management.component';
+import { QrcodeModalComponent } from './components/qrcode-modal/qrcode-modal.component';
+import {NgxQRCodeModule} from "@techiediaries/ngx-qrcode";
+import { DraggableElementComponent } from './components/draggable-element/draggable-element.component';
+import { SideFloatControlComponent } from './components/side-float-control/side-float-control.component';
+import { CollaborateModalComponent } from './components/collaborate-modal/collaborate-modal.component';
+import { LocalSessionStateModalComponent } from './components/local-session-state-modal/local-session-state-modal.component';
 PlotlyModule.plotlyjs = PlotlyJS;
 @NgModule({
   declarations: [
@@ -83,22 +89,28 @@ PlotlyModule.plotlyjs = PlotlyJS;
     DefaultColorPaletteComponent,
     VariantSelectionComponent,
     SessionExpiredModalComponent,
-    DataSelectionManagementComponent
+    DataSelectionManagementComponent,
+    QrcodeModalComponent,
+    DraggableElementComponent,
+    SideFloatControlComponent,
+    CollaborateModalComponent,
+    LocalSessionStateModalComponent
   ],
-  imports: [
-    BrowserModule,
-    AppRoutingModule,
-    NgbModule,
-    FormsModule,
-    HttpClientModule,
-    PlotlyModule,
-    ColorPickerModule,
-    //ContextMenuModule,
-    NgxPrintModule,
-    QuillModule.forRoot(),
-    ReactiveFormsModule,
-    AccountsModule
-  ],
+    imports: [
+        BrowserModule,
+        AppRoutingModule,
+        NgbModule,
+        FormsModule,
+        HttpClientModule,
+        PlotlyModule,
+        ColorPickerModule,
+        //ContextMenuModule,
+        NgxPrintModule,
+        QuillModule.forRoot(),
+        ReactiveFormsModule,
+        AccountsModule,
+        NgxQRCodeModule
+    ],
   providers: [HttpClient,
     //ContextMenuService
   ],

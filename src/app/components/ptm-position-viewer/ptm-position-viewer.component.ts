@@ -45,8 +45,11 @@ export class PtmPositionViewerComponent implements OnInit {
   kinases: any = {}
   kinaseLibrary: any = {}
   kinaseLibraryOpenStatus: any = {}
+  showPSPLink: boolean = false
   set dbSelected(value: string[]) {
+
     for (let d of this._dbSelected) {
+
       if (!value.includes(d)) {
         delete this.sourceMap[d]
         delete this.accOptions[d]
@@ -156,6 +159,7 @@ export class PtmPositionViewerComponent implements OnInit {
   }
 
   async drawHeatmap() {
+    this.showPSPLink = false
     const temp: any = {}
     const gapCount: any = {}
     const labels: string[] = Object.keys(this.sourceMap)
@@ -200,13 +204,18 @@ export class PtmPositionViewerComponent implements OnInit {
     console.log(this.alignedMap["Experimental Data"])
     console.log(this.dataService.selectedMap)
     for (const t of labels) {
+      if (t.startsWith("PhosphoSite Plus")) {
+        this.showPSPLink = true
+      }
       if (t !== "Experimental Data") {
         this.alignedMap[t] = this.composeGraphData(t, temp, gapCount);
 
         for (const m of modified) {
           if (temp[t].marker.color[m.alignedPosition].startsWith('rgba(154, 220, 255')) {
             temp[t].marker.color[m.alignedPosition] = temp[t].marker.color[m.alignedPosition].replace('rgba(154, 220, 255', 'rgba(209, 140, 224')
-            temp["Experimental Data"].marker.color[m.alignedPosition] = 'rgba(209, 140, 224,1)'
+            if (temp["Experimental Data"].marker.color[m.alignedPosition] !== 'rgba(114,220,0,0.85)') {
+              temp["Experimental Data"].marker.color[m.alignedPosition] = 'rgba(209, 140, 224,1)'
+            }
           }
         }
       }
@@ -302,7 +311,7 @@ export class PtmPositionViewerComponent implements OnInit {
                   console.log(u.id)
                   color = 'rgba(114,220,0,0.85)'
                   match = true
-                  break
+                  //break
                 }
               }
             }
