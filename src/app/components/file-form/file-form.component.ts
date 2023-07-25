@@ -28,6 +28,7 @@ export class FileFormComponent implements OnInit {
   }
 
   startWork() {
+    this.finished.emit(false)
     if (typeof Worker !== 'undefined') {
       console.log("start worker")
       // Create a new
@@ -85,7 +86,13 @@ export class FileFormComponent implements OnInit {
             } else if (data.data.type === "resultRaw") {
               this.data.raw.df = fromJSON(data.data.raw)
               this.data.sampleMap = data.data.sampleMap
-              this.settings.settings = data.data.settings
+              for (const s in this.settings.settings) {
+
+                if (this.settings.settings.hasOwnProperty(s)) {
+                  // @ts-ignore
+                  this.settings.settings[s] = data.data.settings[s]
+                }
+              }
               this.data.conditions = data.data.conditions
               this.data.colorMap = data.data.colorMap
               this.processUniProt()
@@ -277,48 +284,59 @@ export class FileFormComponent implements OnInit {
   }
 
   processUniProt() {
-    this.uniprot.geneNameToPrimary = {}
+
     if (this.data.fetchUniProt) {
-      const accList: string[] = []
-      this.data.dataMap = new Map<string, string>()
-      this.data.genesMap = {}
-      for (const r of this.data.currentDF) {
-        const a = r[this.data.differentialForm.accession]
-        this.data.dataMap.set(a, r[this.data.differentialForm.accession])
-        this.data.dataMap.set(r[this.data.differentialForm.primaryIDs], a)
-        this.data.dataMap.set(r[this.data.differentialForm.accession], a)
+      if (!this.data.bypassUniProt) {
+        this.uniprot.geneNameToPrimary = {}
+        const accList: string[] = []
+        this.data.dataMap = new Map<string, string>()
+        this.data.genesMap = {}
+        this.uniprot.accMap = new Map<string, string>()
+        this.uniprot.dataMap = new Map<string, string>()
+        for (const r of this.data.currentDF) {
+          const a = r[this.data.differentialForm.accession]
+          this.data.dataMap.set(a, r[this.data.differentialForm.accession])
+          this.data.dataMap.set(r[this.data.differentialForm.primaryIDs], a)
+          this.data.dataMap.set(r[this.data.differentialForm.accession], a)
 
-        const d = a.split(";")
-        const accession = this.uniprot.Re.exec(d[0])
-        if (accession) {
-          this.uniprot.accMap.set(a, accession[1])
-          if (!this.data.accessionToPrimaryIDs[accession[1]]) {
-            this.data.accessionToPrimaryIDs[accession[1]] = {}
-          }
-          this.data.accessionToPrimaryIDs[accession[1]][r[this.data.differentialForm.primaryIDs]] = true
-          this.uniprot.accMap.set(r[this.data.differentialForm.primaryIDs], accession[1])
+          const d = a.split(";")
+          const accession = this.uniprot.Re.exec(d[0])
+          if (accession) {
+            this.uniprot.accMap.set(a, accession[1])
+            if (!this.data.accessionToPrimaryIDs[accession[1]]) {
+              this.data.accessionToPrimaryIDs[accession[1]] = {}
+            }
+            this.data.accessionToPrimaryIDs[accession[1]][r[this.data.differentialForm.primaryIDs]] = true
+            this.uniprot.accMap.set(r[this.data.differentialForm.primaryIDs], accession[1])
 
-          if (!this.uniprot.dataMap.has(accession[1])) {
-            if (!accList.includes(accession[1])) {
-              accList.push(accession[1])
+            if (!this.uniprot.dataMap.has(accession[1])) {
+              if (!accList.includes(accession[1])) {
+                accList.push(accession[1])
+              }
             }
           }
         }
-      }
-      if (accList.length > 0) {
-        this.uniprot.UniprotParserJS(accList).then(r => {
-          this.createUniprotDatabase().then((allGenes)=> {
-            this.data.allGenes = allGenes
+        if (accList.length > 0) {
+          this.uniprot.UniprotParserJS(accList).then(r => {
+            this.createUniprotDatabase().then((allGenes)=> {
+              this.data.allGenes = allGenes
 
-            this.finished.emit(true)
-            this.updateProgressBar(100, "Finished")
-          });
-        })
+              this.finished.emit(true)
+              this.updateProgressBar(100, "Finished")
+            });
+          })
+        } else {
+          this.finished.emit(true)
+          this.updateProgressBar(100, "Finished")
+        }
       } else {
         this.finished.emit(true)
+        this.data.bypassUniProt = false
         this.updateProgressBar(100, "Finished")
       }
+
     } else {
+      this.uniprot.geneNameToPrimary = {}
       if (this.data.differentialForm.geneNames !== "") {
         for (const r of this.data.differential.df) {
           if (r[this.data.differentialForm.geneNames] !== "") {

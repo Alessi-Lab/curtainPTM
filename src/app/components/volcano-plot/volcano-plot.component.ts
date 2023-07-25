@@ -173,6 +173,7 @@ export class VolcanoPlotComponent implements OnInit {
       const y = r[this.dataService.differentialForm.significant]
       const primaryID = r[this.dataService.differentialForm.primaryIDs]
       const accID = r[this.dataService.differentialForm.accession]
+
       let text = primaryID
       if (this.dataService.fetchUniProt) {
         const r: any = this.uniprot.getUniprotFromAcc(accID)
@@ -184,7 +185,17 @@ export class VolcanoPlotComponent implements OnInit {
           geneNames = r[this.dataService.differentialForm.geneNames]
         }
       }
-      if (geneNames !== "") {
+
+      if (
+        this.dataService.differentialForm.peptideSequence !== "" &&
+        this.dataService.differentialForm.positionPeptide !== "" &&
+        this.dataService.differentialForm.peptideSequence !== ""
+      ) {
+        const position = r[this.dataService.differentialForm.position]
+        const positionInPeptide = r[this.dataService.differentialForm.positionPeptide]
+        const peptide = r[this.dataService.differentialForm.peptideSequence]
+        text = `${geneNames}(${peptide[positionInPeptide-1]}${position})(${primaryID})`
+      } else if (geneNames !== "") {
         text = geneNames + "(" + primaryID + ")"
       }
       //this.nameToID[text] = primaryID
@@ -442,7 +453,10 @@ export class VolcanoPlotComponent implements OnInit {
   }
 
   openCustomColor() {
-    this.modal.open(VolcanoColorsComponent)
+    const ref = this.modal.open(VolcanoColorsComponent)
+    ref.componentInstance.closed.subscribe(() => {
+      this.drawVolcano()
+    })
   }
 
   async annotateDataPoints(data: string[]) {
@@ -452,9 +466,18 @@ export class VolcanoPlotComponent implements OnInit {
       let title = a[this.dataService.differentialForm.primaryIDs]
       const uni: any = this.uniprot.getUniprotFromAcc(a[this.dataService.differentialForm.primaryIDs])
       if (uni) {
-        if (uni["Gene Names"] !== "") {
-          title = uni["Gene Names"] + "(" + title + ")"
-        }
+        title = uni["Gene Names"] + "(" + title + ")"
+      }
+      let text = title.slice()
+      if (
+        this.dataService.differentialForm.peptideSequence !== "" &&
+        this.dataService.differentialForm.positionPeptide !== "" &&
+        this.dataService.differentialForm.peptideSequence !== ""
+      ) {
+        const position = a[this.dataService.differentialForm.position]
+        const positionInPeptide = a[this.dataService.differentialForm.positionPeptide]
+        const peptide = a[this.dataService.differentialForm.peptideSequence]
+        text = `${ uni["Gene Names"]}(${peptide[positionInPeptide-1]}${position})`
       }
       if (!this.annotated[title]) {
         const ann: any = {
@@ -462,7 +485,7 @@ export class VolcanoPlotComponent implements OnInit {
           yref: 'y',
           x: a[this.dataService.differentialForm.foldChange],
           y: a[this.dataService.differentialForm.significant],
-          text: "<b>"+title+"</b>",
+          text: "<b>"+text+"</b>",
           showarrow: true,
           arrowhead: 1,
           arrowsize: 1,

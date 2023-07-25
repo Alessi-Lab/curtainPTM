@@ -15,6 +15,8 @@ import {Project} from "../../classes/project";
 import {LoginModalComponent} from "../../accounts/login-modal/login-modal.component";
 import {NgbModal} from "@ng-bootstrap/ng-bootstrap";
 import {AccountsService} from "../../accounts/accounts.service";
+import {WebsocketService} from "../../websocket.service";
+import {reviver} from "curtain-web-api";
 
 @Component({
   selector: 'app-home',
@@ -29,7 +31,7 @@ export class HomeComponent implements OnInit {
   filterModel: string = ""
   currentID: string = ""
   @Output() currentIDChanged: EventEmitter<string> = new EventEmitter<string>()
-  constructor(private accounts: AccountsService, private modal: NgbModal, public settings: SettingsService, private data: DataService, private route: ActivatedRoute, private toast: ToastService, private uniprot: UniprotService, private web: WebService, private ptm: PtmService) {
+  constructor(private ws: WebsocketService, private accounts: AccountsService, private modal: NgbModal, public settings: SettingsService, private data: DataService, private route: ActivatedRoute, private toast: ToastService, private uniprot: UniprotService, private web: WebService, private ptm: PtmService) {
 
 
     // if (location.protocol === "https:" && location.hostname === "curtainptm.proteo.info") {
@@ -51,6 +53,8 @@ export class HomeComponent implements OnInit {
           this.rawFiltered = new DataFrame()
           this.differentialFiltered = new Series()
           this.handleFinish(true)
+          this.data.redrawTrigger.next(true)
+          this.data.selectionUpdateTrigger.next(true)
         }
       })
       this.route.params.subscribe(params => {
@@ -59,10 +63,18 @@ export class HomeComponent implements OnInit {
             const settings = params["settings"].split("&")
             let token: string = ""
             if (settings.length > 1) {
-              token = settings[1]
-              this.data.tempLink = true
-            } else {
-              this.data.tempLink = false
+              if (settings[1] !== "") {
+                token = settings[1]
+                this.data.tempLink = true
+              } else {
+                this.data.tempLink = false
+              }
+
+              if (settings.length > 2 && settings[2] !== "") {
+                //this.ws.close()
+                this.ws.sessionID = settings[2]
+                //this.ws.reconnect()
+              }
             }
             this.toast.show("Initialization", "Fetching data from session " + params["settings"]).then()
             if (this.currentID !== settings[0]) {
@@ -76,11 +88,12 @@ export class HomeComponent implements OnInit {
                     this.restoreSettings(data.data).then(result => {
                       this.accounts.curtainAPI.getSessionSettings(settings[0]).then((d:any)=> {
                         this.data.session = d.data
+                        console.log(d.data)
                         this.settings.settings.currentID = d.data.link_id
                       })
                     })
                     this.accounts.curtainAPI.getOwnership(settings[0]).then((data:any) => {
-                      if (data.ownership) {
+                      if (data.data.ownership) {
                         this.accounts.isOwner = true
                       } else {
                         this.accounts.isOwner = false
@@ -122,8 +135,35 @@ export class HomeComponent implements OnInit {
   }
   async restoreSettings(object: any) {
     if (typeof object.settings === "string") {
-      object.settings = JSON.parse(object.settings)
+      object.settings = JSON.parse(object.settings, reviver)
     }
+
+    if (object.fetchUniProt) {
+      if (object.extraData) {
+        if (typeof object.extraData === "string") {
+          object.extraData = JSON.parse(object.extraData, reviver)
+        }
+        if (object.extraData.uniprot) {
+          this.uniprot.results = new Map(object.extraData.uniprot.results.value)
+          this.uniprot.dataMap = new Map(object.extraData.uniprot.dataMap.value)
+          this.uniprot.db = new Map(object.extraData.uniprot.db.value)
+          this.uniprot.organism = object.extraData.uniprot.organism
+          this.uniprot.accMap = new Map(object.extraData.uniprot.accMap.value)
+          this.uniprot.geneNameToPrimary = object.extraData.uniprot.geneNameToPrimary
+        }
+        if (object.extraData.data) {
+          this.data.accessionToPrimaryIDs = object.extraData.data.accessionToPrimaryIDs
+          this.data.primaryIDsList = object.extraData.data.primaryIDsList
+          this.data.accessionList = object.extraData.data.accessionList
+          this.data.accessionMap = object.extraData.data.accessionMap
+          this.data.genesMap = object.extraData.data.genesMap
+          this.data.allGenes = object.extraData.data.allGenes
+          this.data.dataMap = new Map(object.extraData.data.dataMap.value)
+        }
+        this.data.bypassUniProt = true
+      }
+    }
+
     if (/\t/.test(object.raw)) {
       // @ts-ignore
       this.data.raw = new InputFile(fromCSV(object.raw, {delimiter: "\t"}), "rawFile.txt", object.raw)
@@ -237,7 +277,12 @@ export class HomeComponent implements OnInit {
         }
       }
     }
-    this.settings.settings = object.settings;
+    for (const i in object.settings) {
+      if (i !== "currentID") {
+        // @ts-ignore
+        this.settings.settings[i] = object.settings[i]
+      }
+    }
     this.data.restoreTrigger.next(true)
   }
 
@@ -306,7 +351,13 @@ export class HomeComponent implements OnInit {
   }
 
   onDownloadProgress = (progressEvent: any) => {
-    this.uniprot.uniprotProgressBar.next({value: progressEvent.progress *100, text: "Downloading session data at " + Math.round(progressEvent.progress * 100) + "%"})
+    if (progressEvent.progress) {
+      this.uniprot.uniprotProgressBar.next({value: progressEvent.progress *100, text: "Downloading session data at " + Math.round(progressEvent.progress * 100) + "%"})
+
+    } else {
+      const sizeDownloaded = (progressEvent.loaded / (1024*1024)).toFixed(2)
+      this.uniprot.uniprotProgressBar.next({value: 100, text: "Downloading session data at " + sizeDownloaded + " MB"})
+    }
   }
 
 }

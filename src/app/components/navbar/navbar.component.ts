@@ -19,6 +19,8 @@ import {UniprotService} from "../../uniprot.service";
 import {CollaborateModalComponent} from "../collaborate-modal/collaborate-modal.component";
 import {SaveStateService} from "../../save-state.service";
 import {LocalSessionStateModalComponent} from "../local-session-state-modal/local-session-state-modal.component";
+import {ProfilePlotComponent} from "../profile-plot/profile-plot.component";
+import {Subscription} from "rxjs";
 
 @Component({
   selector: 'app-navbar',
@@ -30,6 +32,8 @@ export class NavbarComponent implements OnInit {
   @Input() uniqueLink: string = ""
   @Output() updateSelection: EventEmitter<boolean> = new EventEmitter<boolean>()
   filterModel: string = ""
+  progressEvent: any = {}
+  subscription: Subscription = new Subscription();
   constructor(
     public web: WebService,
     public data: DataService,
@@ -40,7 +44,14 @@ export class NavbarComponent implements OnInit {
     private toast: ToastService,
     private uniprot: UniprotService,
     private saveState: SaveStateService
-  ) { }
+  ) {
+    if (this.subscription) {
+      this.subscription.unsubscribe()
+    }
+    this.subscription = this.uniprot.uniprotProgressBar.asObservable().subscribe((data: any) => {
+      this.progressEvent = data
+    })
+  }
 
   ngOnInit(): void {
   }
@@ -63,6 +74,25 @@ export class NavbarComponent implements OnInit {
   }
 
   private saving() {
+    const extraData: any = {
+      uniprot: {
+        results: this.uniprot.results,
+        dataMap: this.uniprot.dataMap,
+        db: this.uniprot.db,
+        organism: this.uniprot.organism,
+        accMap: this.uniprot.accMap,
+        geneNameToPrimary: this.uniprot.geneNameToPrimary,
+      },
+      data: {
+        accessionToPrimaryIDs: this.data.accessionToPrimaryIDs,
+        primaryIDsList: this.data.primaryIDsList,
+        accessionList: this.data.accessionList,
+        accessionMap: this.data.accessionMap,
+        genesMap: this.data.genesMap,
+        allGenes: this.data.allGenes,
+        dataMap: this.data.dataMap,
+      }
+    }
     const data: any = {
       raw: this.data.raw.originalFile,
       rawForm: this.data.rawForm,
@@ -76,7 +106,8 @@ export class NavbarComponent implements OnInit {
       dbIDMap: this.data.dbIDMap,
       fetchUniProt: this.data.fetchUniProt,
       annotatedData: this.data.annotatedData,
-      annotatedMap: this.data.annotatedMap
+      annotatedMap: this.data.annotatedMap,
+      extraData: extraData,
     }
     this.accounts.curtainAPI.putSettings(data, !this.accounts.curtainAPI.user.loginStatus, data.settings.description, "PTM", this.onUploadProgress).then((data: any) => {
       if (data.data) {
@@ -93,7 +124,14 @@ export class NavbarComponent implements OnInit {
     this.uniprot.uniprotProgressBar.next({value: progressEvent.progress * 100, text: "Uploading session data at " + Math.round(progressEvent.progress *100) + "%"})
   }
   clearSelections() {
-    this.data.clear()
+    //this.data.clear()
+    this.data.selected = []
+    this.data.selectedGenes = []
+    this.data.selectedMap = {}
+    this.data.selectOperationNames = []
+    this.data.selectedAccessions = []
+    this.settings.settings.textAnnotation = {}
+    this.data.annotatedData = {}
     this.data.dataClear.next(true)
   }
 
@@ -195,5 +233,14 @@ export class NavbarComponent implements OnInit {
 
   openStateModal() {
     const ref = this.modal.open(LocalSessionStateModalComponent, {scrollable: true})
+  }
+
+  getSelectedList() {
+    this.web.downloadFile("SelectedPrimaryIDs.txt", this.data.selected.join("\n"))
+  }
+
+  openProfilePlot() {
+    const ref = this.modal.open(ProfilePlotComponent, {size: "xl", scrollable: true})
+    ref.componentInstance.data = this.data.raw.df
   }
 }

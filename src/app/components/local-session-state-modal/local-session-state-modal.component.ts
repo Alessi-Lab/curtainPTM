@@ -35,10 +35,30 @@ export class LocalSessionStateModalComponent implements OnInit {
         this.states = [state].concat(this.states)
       }
     }
+    console.log(this.states)
   }
 
   close() {
     this.modal.dismiss()
   }
+  loadFromFile(event: any) {
+    const files: FileList = event.target.files
+    if (files.length > 0) {
+      const file = files[0]
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const contents = e.target?.result
+        if (contents) {
+          const state = JSON.parse(contents.toString())
+          this.saveState.loadStateFromObject(state)
+          this.modal.dismiss()
+        }
+      }
+      reader.readAsText(file)
+    }
+  }
 
+  downloadState(stateNumber: number) {
+    this.saveState.downloadState(stateNumber)
+  }
 }

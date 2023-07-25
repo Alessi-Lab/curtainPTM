@@ -49,10 +49,11 @@ export class SideFloatControlComponent implements OnInit, OnDestroy {
     "!rd",
     "!anngene",
     "!annpid",
-    "!savestate"
+    "!savestate",
   ]
-  constructor(private saveState: SaveStateService, private ws: WebsocketService, private fb: FormBuilder, private data: DataService) {
+  constructor(private saveState: SaveStateService, private ws: WebsocketService, private fb: FormBuilder, public data: DataService) {
     this.ws.connection = this.ws.connect()
+
     if (this.webSub) {
       this.webSub.unsubscribe()
     }
@@ -63,6 +64,10 @@ export class SideFloatControlComponent implements OnInit, OnDestroy {
         this.setSubscription();
       }
     })
+    if (this.ws.connection) {
+      const message = {message: {message: "Connected to server", timestamp: Date.now()}, senderID: "system", senderName: "System", requestType: "chat-system"}
+      this.messagesList = [message].concat(this.messagesList)
+    }
   }
   commandCompleteModel: string = ""
   private setSubscription() {
@@ -71,10 +76,15 @@ export class SideFloatControlComponent implements OnInit, OnDestroy {
       data.message.timestamp = new Date(data.message.timestamp)
       this.messagesList = [data].concat(this.messagesList)
       this.senderMap[data.senderID] = data.senderName
+      if (data.requestType === "push-state-all-force") {
+        this.loadSentState(data.message.data)
+      }
       this.chatbox?.nativeElement.scrollTo(0, this.chatbox.nativeElement.scrollHeight)
     }, (error: any) => {
       console.log(error)
     }, () => {
+      const message = {message: {message: "Disconnected from server", timestamp: Date.now()}, senderID: "system", senderName: "System", requestType: "chat-system"}
+      this.messagesList = [message].concat(this.messagesList)
       console.log("complete")
     })
   }
@@ -112,9 +122,13 @@ export class SideFloatControlComponent implements OnInit, OnDestroy {
         case "!savestate":
           this.saveStateCommand(command)
           break
+        case "!instructor":
+          this.data.instructorMode = !this.data.instructorMode
+          this.messagesList = [{message: {message: `Instructor mode ${this.data.instructorMode ? "enabled" : "disabled"}`, timestamp: Date.now()}, senderID: "system", senderName: "System", requestType: "chat-system"}].concat(this.messagesList)
+          break
         default:
-          const message = {message: {message: "Command not found", timestamp: Date.now()}, senderID: "system", senderName: "System", requestType: "chat-system"}
-          this.messagesList = [message].concat(this.messagesList)
+          const messageSystem = {message: {message: "Command not found", timestamp: Date.now()}, senderID: "system", senderName: "System", requestType: "chat-system"}
+          this.messagesList = [messageSystem].concat(this.messagesList)
       }
 
     } else {
@@ -176,6 +190,15 @@ export class SideFloatControlComponent implements OnInit, OnDestroy {
             requestType: "chat-system-save-state"
           }
           this.messagesList = [message].concat(this.messagesList)
+        } else if (command[1] === "-p") {
+          const save = this.saveState.createNewState()
+          const message: Message = {
+            message: {data: save, timestamp: Date.now()},
+            senderID: this.ws.personalID,
+            senderName: this.ws.displayName,
+            requestType: "push-state-all"
+          }
+          this.ws.send(message)
         }
       }
     }
@@ -401,5 +424,20 @@ export class SideFloatControlComponent implements OnInit, OnDestroy {
   }
   loadStateDirect(state: number) {
     this.saveState.loadState(state)
+  }
+
+  loadSentState(state: any) {
+    this.saveState.loadStateFromObject(state)
+  }
+
+  forcePushState() {
+    const save = this.saveState.createNewState()
+    const message: Message = {
+      message: {data: save, timestamp: Date.now()},
+      senderID: this.ws.personalID,
+      senderName: this.ws.displayName,
+      requestType: "push-state-all-force"
+    }
+    this.ws.send(message)
   }
 }
