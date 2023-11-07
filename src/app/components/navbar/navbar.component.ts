@@ -21,6 +21,10 @@ import {SaveStateService} from "../../save-state.service";
 import {LocalSessionStateModalComponent} from "../local-session-state-modal/local-session-state-modal.component";
 import {ProfilePlotComponent} from "../profile-plot/profile-plot.component";
 import {Subscription} from "rxjs";
+import {
+  SampleConditionAssignmentModalComponent
+} from "../sample-condition-assignment-modal/sample-condition-assignment-modal.component";
+import {UserPtmImportManagementComponent} from "../user-ptm-import-management/user-ptm-import-management.component";
 
 @Component({
   selector: 'app-navbar',
@@ -183,7 +187,7 @@ export class NavbarComponent implements OnInit {
   }
 
   openAccountModal() {
-    const ref = this.modal.open(AccountsComponent)
+    const ref = this.modal.open(AccountsComponent, {size: "xl", scrollable: true})
   }
   openColorPaletteModal() {
     const ref = this.modal.open(DefaultColorPaletteComponent, {size: "xl", scrollable: true})
@@ -241,6 +245,20 @@ export class NavbarComponent implements OnInit {
 
   openProfilePlot() {
     const ref = this.modal.open(ProfilePlotComponent, {size: "xl", scrollable: true})
+    ref.componentInstance.selected = this.settings.settings.selectedComparison.slice()
     ref.componentInstance.data = this.data.raw.df
+  }
+
+  openSampleAndConditionModal() {
+    const ref = this.modal.open(SampleConditionAssignmentModalComponent, {scrollable: true})
+  }
+
+  reload() {
+    window.location.reload()
+  }
+
+  openUserPTMImportManagement() {
+    const ref = this.modal.open(UserPtmImportManagementComponent, {scrollable: true})
+
   }
 }

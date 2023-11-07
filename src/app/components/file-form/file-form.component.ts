@@ -14,6 +14,7 @@ export class FileFormComponent implements OnInit {
   progressBar: any = {value: 0, text: ""}
   transformedFC: boolean = false
   transformedP: boolean = false
+  iscollapsed = false
   @Output() finished: EventEmitter<boolean> = new EventEmitter<boolean>()
   constructor(private uniprot: UniprotService, public data: DataService, public settings: SettingsService) {
     this.uniprot.uniprotProgressBar.subscribe(data => {
@@ -34,7 +35,7 @@ export class FileFormComponent implements OnInit {
       // Create a new
       const worker = new Worker(new URL('./data.worker', import.meta.url));
       worker.onmessage = (data: MessageEvent<any>) => {
-        console.log(data.data)
+
         if (data.data) {
           if (data.data.type === "progress") {
             this.updateProgressBar(data.data.value, data.data.text)
@@ -85,7 +86,6 @@ export class FileFormComponent implements OnInit {
               this.data.raw.df = new DataFrame()
             } else if (data.data.type === "resultRaw") {
               this.data.raw.df = fromJSON(data.data.raw)
-              this.data.sampleMap = data.data.sampleMap
               for (const s in this.settings.settings) {
 
                 if (this.settings.settings.hasOwnProperty(s)) {
@@ -94,7 +94,6 @@ export class FileFormComponent implements OnInit {
                 }
               }
               this.data.conditions = data.data.conditions
-              this.data.colorMap = data.data.colorMap
               this.processUniProt()
               worker.terminate()
             } else if (data.data.type === "resultDifferentialCompleted") {
@@ -207,7 +206,7 @@ export class FileFormComponent implements OnInit {
       if (!(s in this.settings.settings.sampleVisible)) {
         this.settings.settings.sampleVisible[s] = true
       }
-      this.data.sampleMap[s] = {replicate: replicate, condition: condition}
+      this.settings.settings.sampleMap[s] = {replicate: replicate, condition: condition, name: s}
       this.data.raw.df = this.data.raw.df.withSeries(s, new Series(this.convertToNumber(this.data.raw.df.getSeries(s).toArray()))).bake()
       sampleNumber ++
       this.updateProgressBar(sampleNumber*100/totalSampleNumber, "Processed "+s+" sample data")
@@ -215,7 +214,7 @@ export class FileFormComponent implements OnInit {
     if (this.settings.settings.conditionOrder.length === 0) {
       this.settings.settings.conditionOrder = conditions
     }
-    this.data.colorMap = colorMap
+    this.settings.settings.colorMap = colorMap
     const currentDF = this.data.differential.df.where(r => r[this.data.differentialForm.comparison] === this.data.differentialForm.comparisonSelect).resetIndex().bake()
 
     const fc = currentDF.getSeries(this.data.differentialForm.foldChange).where(i => !isNaN(i)).bake()
@@ -419,5 +418,13 @@ export class FileFormComponent implements OnInit {
       }
       return seq
     })
+  }
+
+  handleFileLoadingProgress(progress:number, fileType: string) {
+    if (progress === 100) {
+      this.updateProgressBar(progress, "Finished loading "+fileType)
+    } else {
+      this.updateProgressBar(progress, "Loading "+fileType)
+    }
   }
 }

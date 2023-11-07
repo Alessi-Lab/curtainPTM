@@ -17,6 +17,7 @@ import {NgbModal} from "@ng-bootstrap/ng-bootstrap";
 import {AccountsService} from "../../accounts/accounts.service";
 import {WebsocketService} from "../../websocket.service";
 import {reviver} from "curtain-web-api";
+import {PtmDiseasesService} from "../../ptm-diseases.service";
 
 @Component({
   selector: 'app-home',
@@ -24,6 +25,7 @@ import {reviver} from "curtain-web-api";
   styleUrls: ['./home.component.scss']
 })
 export class HomeComponent implements OnInit {
+  GDPR: boolean = false
   finished: boolean = false
   rawFiltered: IDataFrame = new DataFrame()
   differentialFiltered:  ISeries<number, IDataFrame<number, any>> = new Series()
@@ -31,14 +33,19 @@ export class HomeComponent implements OnInit {
   filterModel: string = ""
   currentID: string = ""
   @Output() currentIDChanged: EventEmitter<string> = new EventEmitter<string>()
-  constructor(private ws: WebsocketService, private accounts: AccountsService, private modal: NgbModal, public settings: SettingsService, private data: DataService, private route: ActivatedRoute, private toast: ToastService, private uniprot: UniprotService, private web: WebService, private ptm: PtmService) {
+  constructor(private ptmd: PtmDiseasesService, private ws: WebsocketService, private accounts: AccountsService, private modal: NgbModal, public settings: SettingsService, private data: DataService, private route: ActivatedRoute, private toast: ToastService, private uniprot: UniprotService, private web: WebService, private ptm: PtmService) {
 
 
     // if (location.protocol === "https:" && location.hostname === "curtainptm.proteo.info") {
     //   this.toast.show("Initialization", "Error: The webpage requires the url protocol to be http instead of https")
     // }
-
+    if (localStorage.getItem("GDPR") === "true") {
+      this.GDPR = false
+    } else {
+      this.GDPR = true
+    }
     this.initialize().then(() => {
+      this.ptmd.parsePTMDiseases()
       this.ptm.getDatabase("PSP_PHOSPHO")
       this.ptm.getDatabase("PLMD_UBI")
       this.ptm.getDatabase("CDB_CARBONYL")
@@ -58,6 +65,7 @@ export class HomeComponent implements OnInit {
         }
       })
       this.route.params.subscribe(params => {
+        console.log(params)
         if (params) {
           if (params["settings"] && params["settings"].length > 0) {
             const settings = params["settings"].split("&")
@@ -82,24 +90,24 @@ export class HomeComponent implements OnInit {
               this.accounts.curtainAPI.getSessionSettings(settings[0]).then((d:any)=> {
                 this.data.session = d.data
                 this.accounts.curtainAPI.postSettings(settings[0], token, this.onDownloadProgress).then((data:any) => {
-                  if (data.data) {
+                  const curtainSettings = data.data
+                  if (curtainSettings) {
                     this.uniqueLink = location.origin + "/#/" + this.currentID
                     this.uniprot.uniprotProgressBar.next({value: 100, text: "Restoring Session..."})
-                    this.restoreSettings(data.data).then(result => {
+                    this.restoreSettings(curtainSettings).then(result => {
+                      this.accounts.curtainAPI.getOwnership(settings[0]).then((d:any) => {
+                        if (d.data.ownership) {
+                          this.accounts.isOwner = true
+                        } else {
+                          this.accounts.isOwner = false
+                        }
+                      }).catch(error => {
+                        this.accounts.isOwner = false
+                      })
                       this.accounts.curtainAPI.getSessionSettings(settings[0]).then((d:any)=> {
                         this.data.session = d.data
-                        console.log(d.data)
                         this.settings.settings.currentID = d.data.link_id
                       })
-                    })
-                    this.accounts.curtainAPI.getOwnership(settings[0]).then((data:any) => {
-                      if (data.data.ownership) {
-                        this.accounts.isOwner = true
-                      } else {
-                        this.accounts.isOwner = false
-                      }
-                    }).catch(error => {
-                      this.accounts.isOwner = false
                     })
                   }
                 }).catch(error => {
@@ -283,6 +291,13 @@ export class HomeComponent implements OnInit {
         this.settings.settings[i] = object.settings[i]
       }
     }
+
+    for (const i in this.settings.settings.customPTMData) {
+      if (this.ptm.databases.filter(r => r.name === i).length === 0) {
+        this.ptm.databases.push({name: i, value: i, academic: true, custom: true})
+        this.ptm.databaseNameMap[i] = i
+      }
+    }
     this.data.restoreTrigger.next(true)
   }
 
@@ -298,6 +313,8 @@ export class HomeComponent implements OnInit {
           const differential = this.data.currentDF.where(r => this.data.selectedAccessions.includes(r[this.data.differentialForm.accession])).bake()
           this.differentialFiltered = differential.groupBy(r => r[this.data.differentialForm.accession]).bake()
         });
+      } else {
+        this.differentialFiltered = new Series()
       }
     }
   }
@@ -360,4 +377,8 @@ export class HomeComponent implements OnInit {
     }
   }
 
+  closeGDPR() {
+    this.GDPR = false
+    localStorage.setItem("GDPR", "true")
+  }
 }

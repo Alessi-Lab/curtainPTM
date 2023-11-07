@@ -15,8 +15,8 @@ export class SampleOrderAndHideComponent implements OnInit {
 
   colorMap: any = {}
   constructor(public dataService: DataService, public modal: NgbActiveModal, private settings: SettingsService) {
-    for (const s in dataService.sampleMap) {
-      const condition = dataService.sampleMap[s].condition
+    for (const s in settings.settings.sampleMap) {
+      const condition = settings.settings.sampleMap[s].condition
       this.samplesVisible[s] = true
       if (s in this.settings.settings.sampleVisible) {
         this.samplesVisible[s] = this.settings.settings.sampleVisible[s]
@@ -27,8 +27,8 @@ export class SampleOrderAndHideComponent implements OnInit {
       this.samples[condition].push(s)
     }
     if (this.settings.settings.conditionOrder.length === 0) {
-      for (const s in dataService.sampleMap) {
-        const condition = dataService.sampleMap[s].condition
+      for (const s in settings.settings.sampleMap) {
+        const condition = settings.settings.sampleMap[s].condition
         if (!this.condition.includes(condition)) {
           this.condition.push(condition)
         }
@@ -40,7 +40,7 @@ export class SampleOrderAndHideComponent implements OnInit {
       if (this.settings.settings.barchartColorMap[c]) {
         this.colorMap[c] = this.settings.settings.barchartColorMap[c].slice()
       } else {
-        this.colorMap[c] = this.dataService.colorMap[c].slice()
+        this.colorMap[c] = this.settings.settings.colorMap[c].slice()
       }
     }
   }
@@ -75,13 +75,13 @@ export class SampleOrderAndHideComponent implements OnInit {
     const sampleMap: any = {}
     for (const c of this.condition) {
       for (const s of this.settings.settings.sampleOrder[c]) {
-        sampleMap[s] = this.dataService.sampleMap[s]
+        sampleMap[s] = this.settings.settings.sampleMap[s]
       }
-      if (this.colorMap[c] !== this.dataService.colorMap[c]) {
+      if (this.colorMap[c] !== this.settings.settings.colorMap[c]) {
         this.settings.settings.barchartColorMap[c] = this.colorMap[c].slice()
       }
     }
-    this.dataService.sampleMap = sampleMap
+    this.settings.settings.sampleMap = sampleMap
     this.dataService.redrawTrigger.next(true)
     this.modal.close()
   }

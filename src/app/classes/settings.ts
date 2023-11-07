@@ -12,6 +12,8 @@ export class Settings {
   academic: boolean = true
   backGroundColorGrey: boolean = false
   currentComparison: string = ""
+  sampleMap: any = {}
+  selectedComparison: string[] = []
   version: number = 2
   currentID: string = ""
   fdrCurveText: string = ""
@@ -65,4 +67,7 @@ export class Settings {
   }
   plotFontFamily: string = "Arial"
   networkInteractionData: any[] = []
+  customVolcanoTextCol = ""
+  customPTMData: any = {}
+
 }

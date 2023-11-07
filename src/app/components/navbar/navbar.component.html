@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top d-lex flex-wrap">
   <div class="container-fluid">
-    <b style="padding-left: 4px" class="text-dark"><a class="navbar-brand" href="#">CurtainPTM</a></b>
+    <a class="navbar-brand" href="#"><b style="padding-left: 4px" class="text-dark">Curtain</b><b class="text-danger">PTM</b></a>
     <div class="d-flex" *ngIf="finished && settings.settings.currentID !==''">
       <div class="p-2">
         <a *ngIf="uniqueLink !== ''" href="{{uniqueLink}}" class="ml-2 text-success">{{uniqueLink}}</a>
@@ -11,6 +11,9 @@
       <div class="p-2">
         <span class="badge bg-warning" (click)="openQRCode()">QR Code</span>
       </div>
+    </div>
+    <div class="p-2" *ngIf="settings.newVersionAvailable">
+      <span class="badge bg-warning" [ngbTooltip]="'Click to reload to get the new version'" (click)="reload()">New CurtainPTM version available</span>
     </div>
     <div class="p-2" *ngIf="progressEvent && !finished">
       <span class="text-info">{{progressEvent.text}}</span>
@@ -23,6 +26,26 @@
           <div ngbDropdownMenu aria-labelledby="localState">
             <button ngbDropdownItem (click)="saveLocalState()">Create local state</button>
             <button ngbDropdownItem (click)="openStateModal()">State Management</button>
+          </div>
+        </div>
+      </div>
+      <div class="p-2">
+        <div display="dynamic" ngbDropdown class="d-inline-block">
+          <button class="btn btn-outline-primary ml-2" id="plot-dropdown" ngbDropdownToggle> Plot
+          </button>
+          <div ngbDropdownMenu aria-labelledby="plot-dropdown">
+            <ng-container *ngIf="finished">
+              <button ngbDropdownItem (click)="openProfilePlot()">
+                Profile Plot  ({{settings.settings.selectedComparison.length}})
+              </button>
+
+              <button ngbDropdownItem (click)="openSampleSettings()">
+                Sample Order & Visibility Settings
+              </button>
+            </ng-container>
+            <button ngbDropdownItem (click)="openColorPaletteModal()">
+              Customize Color Palette
+            </button>
           </div>
         </div>
       </div>
@@ -41,17 +64,15 @@
               <button ngbDropdownItem (click)="web.downloadFile('different.txt', data.differential.originalFile)">Download Differential Analysis File</button>
               <button ngbDropdownItem (click)="web.downloadFile('raw.txt', data.raw.originalFile)">Download Raw File</button>
               <button ngbDropdownItem (click)="openAnnotation()">Project Annotation</button>
-              <button ngbDropdownItem (click)="openProfilePlot()">Profile Plot</button>
               <button ngbDropdownItem (click)="getSelectedList()">
                 Get Selected Primary IDs List
               </button>
               <button ngbDropdownItem (click)="openQRCode()" *ngIf="settings.settings.currentID !== ''">Session QR Code</button>
-              <button ngbDropdownItem (click)="openSampleSettings()">Sample Order and Visibility</button>
-              <button ngbDropdownItem (click)="openColorPaletteModal()">
-                Customize Color Palette
-              </button>
               <button ngbDropdownItem (click)="selectionManagementModal()">
                 Data Selection Management
+              </button>
+              <button ngbDropdownItem (click)="openSampleAndConditionModal()">
+                Sample & Condition Assignment
               </button>
             </ng-container>
             <button ngbDropdownItem (click)="openLoginModal()" *ngIf="accounts.curtainAPI.user.loginStatus===false">
@@ -59,6 +80,9 @@
             </button>
             <button ngbDropdownItem (click)="openSessionSettings()" [disabled]="!accounts.getSessionPermission()">
               Session Settings
+            </button>
+            <button ngbDropdownItem (click)="openUserPTMImportManagement()">
+              Custom PTM Import Management
             </button>
             <ng-container *ngIf="accounts.curtainAPI.user.loginStatus">
               <button ngbDropdownItem (click)="openAccountModal()">
@@ -69,6 +93,8 @@
               </button>
             </ng-container>
             <button ngbDropdownItem (click)="openCollaborateModal()">Collaborate</button>
+            <a type="button" ngbDropdownItem href="https://www.youtube.com/channel/UCwTAaXMvmqoozLB0XwZz20g" target="_blank"><i class="bi bi-youtube"></i> Video Tutorial</a>
+            <a type="button" ngbDropdownItem href="https://groups.google.com/g/curtain-proteomics" target="_blank"><i class="bi bi-google"> Support Google Group</i></a>
           </div>
         </div>
       </div>

@@ -66,6 +66,8 @@ export class VolcanoPlotComponent implements OnInit {
 
   breakColor: boolean = false
   markerSize: number = 10
+
+  specialColorMap: any = {}
   drawVolcano() {
     if (!this.settings.settings.visible) {
       this.settings.settings.visible = {}
@@ -74,7 +76,15 @@ export class VolcanoPlotComponent implements OnInit {
     this.graphLayout.title.text = this.settings.settings.volcanoPlotTitle
     let currentColors: string[] = []
     if (this.settings.settings.colorMap) {
-      currentColors = Object.values(this.settings.settings.colorMap)
+      for (const s in this.settings.settings.colorMap) {
+        if (!this.dataService.conditions.includes(s)) {
+          if (this.settings.settings.colorMap[s]) {
+            if (this.settings.settings.defaultColorList.includes(this.settings.settings.colorMap[s])) {
+              currentColors.push(this.settings.settings.colorMap[s])
+            }
+          }
+        }
+      }
     } else {
       this.settings.settings.colorMap = {}
     }
@@ -86,7 +96,9 @@ export class VolcanoPlotComponent implements OnInit {
       }
     }
     const temp: any = {}
-
+    if (currentColors.length !== this.settings.settings.defaultColorList.length) {
+      currentPosition = currentColors.length
+    }
     for (const s of this.dataService.selectOperationNames) {
       if (!this.settings.settings.colorMap[s]) {
         while (true) {
@@ -212,14 +224,24 @@ export class VolcanoPlotComponent implements OnInit {
         temp["Background"].text.push(text)
         temp["Background"].primaryIDs.push(primaryID)
       } else {
-        const group = this.dataService.significantGroup(x, y)
+        const gr = this.dataService.significantGroup(x, y)
+        const group = gr[0]
         if (!temp[group]) {
           if (!this.settings.settings.colorMap[group]) {
-            this.settings.settings.colorMap[group] = this.settings.settings.defaultColorList[currentPosition]
+            if (!this.specialColorMap[gr[1]]) {
+              if (this.settings.settings.defaultColorList[currentPosition]) {
+                this.specialColorMap[gr[1]] = this.settings.settings.defaultColorList[currentPosition].slice()
+                this.settings.settings.colorMap[group] = this.settings.settings.defaultColorList[currentPosition].slice()
+              }
+            } else {
+              this.settings.settings.colorMap[group] = this.specialColorMap[gr[1]].slice()
+            }
             currentPosition ++
             if (currentPosition === this.settings.settings.defaultColorList.length) {
               currentPosition = 0
             }
+          } else {
+            this.specialColorMap[gr[1]] = this.settings.settings.colorMap[group].slice()
           }
 
           temp[group] = {
@@ -378,7 +400,7 @@ export class VolcanoPlotComponent implements OnInit {
     console.log(this.graphLayout.annotations)
   }
 
-  constructor(private web: WebService, private dataService: DataService, private uniprot: UniprotService, public settings: SettingsService, private modal: NgbModal) {
+  constructor(private web: WebService, public dataService: DataService, private uniprot: UniprotService, public settings: SettingsService, private modal: NgbModal) {
     this.annotated = {}
     for (const i in this.settings.settings.textAnnotation) {
       if (this.settings.settings.textAnnotation[i].showannotation === undefined || this.settings.settings.textAnnotation[i].showannotation === null) {
@@ -386,6 +408,12 @@ export class VolcanoPlotComponent implements OnInit {
       }
       this.annotated[i] = this.settings.settings.textAnnotation[i]
     }
+
+    this.dataService.resetVolcanoColor.asObservable().subscribe(data => {
+      if (data) {
+        this.specialColorMap = {}
+      }
+    })
     this.dataService.selectionUpdateTrigger.asObservable().subscribe(data => {
       if (data) {
         this.drawVolcano()
@@ -479,6 +507,7 @@ export class VolcanoPlotComponent implements OnInit {
         const peptide = a[this.dataService.differentialForm.peptideSequence]
         text = `${ uni["Gene Names"]}(${peptide[positionInPeptide-1]}${position})`
       }
+
       if (!this.annotated[title]) {
         const ann: any = {
           xref: 'x',
@@ -496,6 +525,9 @@ export class VolcanoPlotComponent implements OnInit {
             size: 15,
             color: "#000000"
           }
+        }
+        if (this.settings.settings.customVolcanoTextCol !== "") {
+          ann.text = "<b>"+a[this.settings.settings.customVolcanoTextCol]+"</b>"
         }
         if (title in this.settings.settings.textAnnotation) {
 

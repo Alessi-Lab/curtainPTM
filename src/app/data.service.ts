@@ -31,6 +31,8 @@ export class DataService {
   dataMap: Map<string, string> = new Map<string, string>()
   sampleMap: any = {}
   conditions: string[] = []
+  resetVolcanoColor: Subject<boolean> = new Subject<boolean>()
+
   minMax = {
     fcMin: 0,
     fcMax: 0,
@@ -188,24 +190,30 @@ export class DataService {
     this.settings.settings.textAnnotation = {}
     this.settings.settings.barchartColorMap = {}
     this.annotatedData = {}
+    this.dataClear.next(true)
   }
 
   significantGroup(x: number, y: number) {
     const ylog = -Math.log10(this.settings.settings.pCutoff)
     const groups: string[] = []
+    let position = ""
     if (ylog > y) {
       groups.push("P-value > " + this.settings.settings.pCutoff)
+      position = "P-value > "
     } else {
       groups.push("P-value <= " + this.settings.settings.pCutoff)
+      position = "P-value <= "
     }
 
     if (Math.abs(x) > this.settings.settings.log2FCCutoff) {
       groups.push("FC > " + this.settings.settings.log2FCCutoff)
+      position += "FC > "
     } else {
       groups.push("FC <= " + this.settings.settings.log2FCCutoff)
+      position += "FC <= "
     }
 
-    return groups.join(";")
+    return [groups.join(";"), position]
   }
 
   getPrimaryFromGeneNames(geneNames: string) {

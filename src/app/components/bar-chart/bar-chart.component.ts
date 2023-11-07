@@ -22,7 +22,7 @@ export class BarChartComponent implements OnInit {
   selectedConditions: string[] = []
   conditions: string[] = []
   testType: string = "ANOVA"
-
+  iscollapsed: boolean = true
   config: any = {
     modeBarButtonsToRemove: ["toImage"]
   }
@@ -50,6 +50,7 @@ export class BarChartComponent implements OnInit {
   graph: any = {}
   graphData: any[] = []
   graphLayout: any = {
+    width: 1100,
     xaxis: {
       tickfont: {
         size: 17,
@@ -136,11 +137,11 @@ export class BarChartComponent implements OnInit {
     const annotations: any[] = []
     const shapes: any[] = []
     let sampleNumber: number = 0
-    for (const s in this.dataService.sampleMap) {
+    for (const s in this.settings.settings.sampleMap) {
       if (this.settings.settings.sampleVisible[s]) {
         sampleNumber ++
-        const condition = this.dataService.sampleMap[s].condition
-        let color = this.dataService.colorMap[condition]
+        const condition = this.settings.settings.sampleMap[s].condition
+        let color = this.settings.settings.colorMap[condition]
         if (this.settings.settings.barchartColorMap[condition]) {
           color = this.settings.settings.barchartColorMap[condition]
         }
@@ -206,10 +207,10 @@ export class BarChartComponent implements OnInit {
     const graphViolin: any[] = []
     const graph: any = {}
     let sampleNumber: number = 0
-    for (const s in this.dataService.sampleMap) {
+    for (const s in this.settings.settings.sampleMap) {
       if (this.settings.settings.sampleVisible[s]) {
         sampleNumber ++
-        const condition = this.dataService.sampleMap[s].condition
+        const condition = this.settings.settings.sampleMap[s].condition
         if (!graph[condition]) {
           graph[condition] = []
         }
@@ -217,7 +218,7 @@ export class BarChartComponent implements OnInit {
       }
     }
     for (const g in graph) {
-      let color = this.dataService.colorMap[g]
+      let color = this.settings.settings.colorMap[g]
       if (this.settings.settings.barchartColorMap[g]) {
         color = this.settings.settings.barchartColorMap[g]
       }
